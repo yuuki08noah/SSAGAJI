@@ -334,3 +334,96 @@ async def api_stats():
                 audio_stats[af["filename"]] = {"mean": round(mean, 2), "std": round(variance ** 0.5, 2)}
 
     return {"total": completed, "audio_stats": audio_stats}
+
+
+# ---------------------------------------------------------------------------
+# 공개 데이터 API
+# ---------------------------------------------------------------------------
+
+@app.get("/api/results")
+async def api_results():
+    """완료된 설문 결과 전체를 JSON으로 반환한다 (학습 데이터 수집용)."""
+    audio_files = get_audio_files()
+    with get_db() as db:
+        sessions = db.execute(
+            "SELECT * FROM sessions WHERE completed = 1 ORDER BY completed_at"
+        ).fetchall()
+
+        rows = []
+        for s in sessions:
+            ratings_rows = db.execute(
+                "SELECT audio_filename, score, answered_at FROM ratings WHERE session_id = ? ORDER BY question_num",
+                (s["session_id"],),
+            ).fetchall()
+            rows.append({
+                "session_id":   s["session_id"],
+                "submitted_at": s["completed_at"],
+                "age":          s["age"],
+                "gender":       s["gender"],
+                "ratings": {r["audio_filename"]: r["score"] for r in ratings_rows},
+            })
+
+        # 음성 파일별 집계
+        per_audio = {}
+        for af in audio_files:
+            scores_rows = db.execute(
+                """SELECT r.score FROM ratings r
+                   JOIN sessions s ON r.session_id = s.session_id
+                   WHERE r.audio_filename = ? AND s.completed = 1""",
+                (af["filename"],),
+            ).fetchall()
+            scores = [r["score"] for r in scores_rows]
+            if scores:
+                mean = sum(scores) / len(scores)
+                variance = sum((x - mean) ** 2 for x in scores) / len(scores) if len(scores) > 1 else 0
+                per_audio[af["filename"]] = {
+                    "mean":   round(mean, 3),
+                    "std":    round(variance ** 0.5, 3),
+                    "count":  len(scores),
+                    "scores": scores,
+                }
+
+    return {
+        "total_respondents": len(rows),
+        "per_audio": per_audio,
+        "responses": rows,
+    }
+
+
+@app.get("/api/results/csv")
+async def api_results_csv():
+    """완료된 설문 결과를 CSV로 반환한다 (load_survey_dataset 형식 B 호환)."""
+    audio_files = get_audio_files()
+    fieldnames = ["session_id", "submitted_at", "age", "gender"] + [af["filename"] for af in audio_files]
+
+    with get_db() as db:
+        sessions = db.execute(
+            "SELECT * FROM sessions WHERE completed = 1 ORDER BY completed_at"
+        ).fetchall()
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for s in sessions:
+            ratings_rows = db.execute(
+                "SELECT audio_filename, score FROM ratings WHERE session_id = ?",
+                (s["session_id"],),
+            ).fetchall()
+            rating_map = {r["audio_filename"]: r["score"] for r in ratings_rows}
+            row = {
+                "session_id":   s["session_id"],
+                "submitted_at": s["completed_at"],
+                "age":          s["age"],
+                "gender":       s["gender"],
+            }
+            for af in audio_files:
+                row[af["filename"]] = rating_map.get(af["filename"], "")
+            writer.writerow(row)
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=survey_results.csv"},
+    )
