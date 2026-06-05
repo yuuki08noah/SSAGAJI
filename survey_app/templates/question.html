@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}문항 {{ question_num }}/{{ total }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .audio-player {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .audio-player audio {
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .play-hint {
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+
+  .rating-section { margin: 28px 0; }
+  .rating-section h3 { margin-bottom: 16px; font-size: 1rem; }
+
+  .rating-scale {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .rating-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    border: 2.5px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 1.4rem;
+    font-weight: 700;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .rating-btn:hover { border-color: var(--primary); background: #ede9fe; }
+  .rating-btn.selected {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+  }
+
+  .rating-labels {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin-top: 8px;
+    padding: 0 4px;
+  }
+
+  .score-desc {
+    text-align: center;
+    margin-top: 12px;
+    min-height: 24px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--primary);
+    transition: opacity 0.2s;
+  }
+
+  .nav-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .nav-buttons .btn { flex: 1; text-align: center; padding: 14px; }
+
+  .listened-badge {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    color: var(--success);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .listened-badge.show { display: flex; }
+
+  .warning-text {
+    color: var(--warn);
+    font-size: 0.85rem;
+    display: none;
+    margin-top: 6px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 진행 바 -->
+<div style="margin-bottom:4px;display:flex;justify-content:space-between;font-size:0.85rem;color:var(--muted);">
+  <span>진행률</span>
+  <span><strong>{{ question_num }}</strong> / {{ total }}</span>
+</div>
+<div class="progress-bar-wrap">
+  <div class="progress-bar-fill" style="width:{{ progress }}%"></div>
+</div>
+
+<div class="card">
+  <!-- 문항 번호 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <span class="chip chip-blue">문항 {{ question_num }}</span>
+    <div class="listened-badge" id="listenedBadge">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+      청취 완료
+    </div>
+  </div>
+
+  <h2 style="font-size:1.15rem;margin-bottom:8px;">아래 음성을 듣고 평가해 주세요.</h2>
+  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:20px;line-height:1.6;">
+    💡 <strong>말의 내용보다 말투·어조·뉘앙스</strong>를 중심으로 평가해 주세요.<br>
+    같은 말도 어떻게 말하느냐에 따라 무례하게 들릴 수 있습니다.
+  </p>
+
+  <!-- 오디오 플레이어 -->
+  <div class="audio-player">
+    <audio id="audioPlayer" controls preload="auto" style="width:100%;">
+      <source src="{{ audio.url }}" type="audio/wav">
+      <source src="{{ audio.url }}" type="audio/mpeg">
+      브라우저가 오디오를 지원하지 않습니다.
+    </audio>
+    <p class="play-hint">⚡ 재생 버튼을 눌러 음성을 들어주세요</p>
+  </div>
+
+  <!-- 평가 -->
+  <form id="ratingForm" action="/survey/{{ session_id }}/{{ question_num }}" method="post">
+    <input type="hidden" name="rating" id="ratingInput" value="{{ existing_rating or '' }}">
+    <input type="hidden" name="action" id="actionInput" value="next">
+
+    <div class="rating-section">
+      <h3>이 음성의 말투가 얼마나 무례하게 느껴지십니까?</h3>
+      <p style="font-size:0.8rem;color:var(--muted);margin:-8px 0 12px;">무시·냉소·강압적 뉘앙스 등 전반적인 인상을 기준으로 평가해 주세요.</p>
+      <div class="rating-scale">
+        {% for i in range(1, 6) %}
+        <button type="button" class="rating-btn {% if existing_rating == i %}selected{% endif %}"
+          data-value="{{ i }}" onclick="selectRating({{ i }})">
+          {{ i }}
+        </button>
+        {% endfor %}
+      </div>
+      <div class="rating-labels">
+        <span>1 = 매우 공손함</span>
+        <span>5 = 매우 무례함</span>
+      </div>
+      <div class="score-desc" id="scoreDesc">
+        {% if existing_rating %}{{ ["", "매우 공손함 😊", "공손함 🙂", "보통 😐", "무례함 😤", "매우 무례함 😡"][existing_rating] }}{% endif %}
+      </div>
+    </div>
+
+    <p class="warning-text" id="warningText">⚠️ 점수를 선택해 주세요.</p>
+
+    <div class="nav-buttons">
+      {% if prev_num %}
+      <a href="/survey/{{ session_id }}/{{ prev_num }}" class="btn btn-outline">← 이전</a>
+      {% endif %}
+
+      {% if next_num %}
+      <button type="button" class="btn btn-primary" onclick="submitForm('next')">
+        다음 →
+      </button>
+      {% else %}
+      <button type="button" class="btn btn-success" onclick="submitForm('finish')">
+        ✅ 제출 완료
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SCORE_LABELS = {
+    1: "매우 공손함 😊",
+    2: "공손함 🙂",
+    3: "보통 😐",
+    4: "무례함 😤",
+    5: "매우 무례함 😡",
+  };
+
+  let listened = false;
+  let selectedRating = {{ existing_rating or 'null' }};
+
+  // 오디오 재생 완료 감지
+  document.getElementById("audioPlayer").addEventListener("ended", () => {
+    listened = true;
+    document.getElementById("listenedBadge").classList.add("show");
+  });
+  // 일정 이상 재생해도 인정
+  document.getElementById("audioPlayer").addEventListener("timeupdate", (e) => {
+    const audio = e.target;
+    if (!listened && audio.currentTime > audio.duration * 0.7) {
+      listened = true;
+      document.getElementById("listenedBadge").classList.add("show");
+    }
+  });
+
+  function selectRating(val) {
+    selectedRating = val;
+    document.getElementById("ratingInput").value = val;
+    document.getElementById("scoreDesc").textContent = SCORE_LABELS[val];
+    document.querySelectorAll(".rating-btn").forEach(btn => {
+      btn.classList.toggle("selected", parseInt(btn.dataset.value) === val);
+    });
+    document.getElementById("warningText").style.display = "none";
+  }
+
+  function submitForm(action) {
+    if (!selectedRating) {
+      document.getElementById("warningText").style.display = "block";
+      return;
+    }
+    document.getElementById("actionInput").value = action;
+    document.getElementById("ratingForm").submit();
+  }
+
+  // 기존 선택 복원
+  if (selectedRating) {
+    document.getElementById("scoreDesc").textContent = SCORE_LABELS[selectedRating];
+  }
+</script>
+{% endblock %}

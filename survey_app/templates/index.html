@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}설문 시작 - 싸가지 점수{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>🎙️ 음성 무례함 인식 설문</h2>
+  <p class="lead">
+    이 설문은 AI 학습을 위한 데이터를 수집합니다.<br>
+    각 음성을 들은 후, <strong>얼마나 '싸가지 없다'고 느끼는지</strong>를 1~5점으로 평가해 주세요.<br><br>
+    <strong>5점</strong>에 가까울수록 매우 무례함, <strong>1점</strong>에 가까울수록 매우 공손함을 의미합니다.
+  </p>
+
+  <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin-bottom:28px;">
+    <p style="font-size:0.9rem;line-height:1.8;color:#475569;">
+      ✅ 수집된 데이터는 연구 목적으로만 사용됩니다.<br>
+      ✅ 음성 파일을 끝까지 들은 후 평가해 주세요.<br>
+      ✅ 첫 인상에 따라 직관적으로 응답하시면 됩니다.<br>
+      ✅ 소요 시간: 약 10~15분
+    </p>
+  </div>
+
+  <form action="/start" method="post">
+    <div class="form-group">
+      <label for="age">연령대</label>
+      <select name="age" id="age" required>
+        <option value="">-- 선택 --</option>
+        <option value="10대">10대</option>
+        <option value="20대">20대</option>
+        <option value="30대">30대</option>
+        <option value="40대">40대</option>
+        <option value="50대 이상">50대 이상</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="gender">성별</label>
+      <select name="gender" id="gender" required>
+        <option value="">-- 선택 --</option>
+        <option value="남성">남성</option>
+        <option value="여성">여성</option>
+        <option value="응답 안 함">응답 안 함</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;padding:14px;">
+      설문 시작하기 →
+    </button>
+  </form>
+</div>
+{% endblock %}

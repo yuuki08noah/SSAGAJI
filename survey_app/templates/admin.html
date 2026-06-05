@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}관리자 통계{% endblock %}
+
+{% block extra_head %}
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .stat-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .filename {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  .stat-card .mean-score {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .stat-card .std-score {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .score-bar {
+    height: 6px;
+    border-radius: 99px;
+    margin-top: 8px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+  }
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .summary-box {
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .summary-box .val { font-size: 2.5rem; font-weight: 800; }
+  .summary-box .lbl { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h2>📊 관리자 통계</h2>
+    {% if stats %}
+    <a href="{{ stats.download_url }}" class="btn btn-success" style="padding:8px 18px;font-size:0.9rem;">
+      ⬇ CSV 다운로드
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- 요약 -->
+  <div class="summary-row">
+    <div class="summary-box">
+      <div class="val">{{ completed_sessions }}</div>
+      <div class="lbl">완료된 설문</div>
+    </div>
+    <div class="summary-box" style="background:#0891b2;">
+      <div class="val">{{ active_sessions }}</div>
+      <div class="lbl">진행 중인 세션</div>
+    </div>
+    <div class="summary-box" style="background:#7c3aed;">
+      <div class="val">{{ stats.total_respondents if stats else 0 }}</div>
+      <div class="lbl">저장된 응답 수</div>
+    </div>
+  </div>
+
+  {% if stats %}
+  <h3 style="margin-bottom:12px;font-size:1rem;">음성별 평균 점수</h3>
+  <div class="stats-grid">
+    {% for filename, s in stats.per_audio.items() %}
+    <div class="stat-card">
+      <div class="filename">{{ filename }}</div>
+      <div class="mean-score"
+        style="color:{% if s.mean >= 4 %}#dc2626{% elif s.mean <= 2 %}#059669{% else %}#d97706{% endif %}">
+        {{ s.mean }}
+      </div>
+      <div class="std-score">±{{ s.std }} (n={{ s.count }})</div>
+      <div class="score-bar">
+        <div class="score-bar-fill" style="width:{{ ((s.mean - 1) / 4 * 100)|round }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:var(--muted);">
+    아직 제출된 설문 데이터가 없습니다.
+  </div>
+  {% endif %}
+
+  <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+    <h3 style="font-size:0.9rem;margin-bottom:8px;">신뢰도 기준</h3>
+    <ul style="font-size:0.85rem;color:var(--muted);line-height:2;padding-left:18px;">
+      <li>표준편차 ≤ 1.0 : 높은 일치도 (우수)</li>
+      <li>표준편차 ≤ 1.5 : 허용 가능 (학습 데이터로 사용)</li>
+      <li>표준편차 &gt; 1.5 : 낮은 일치도 (필터링 권장)</li>
+      <li>Krippendorff α ≥ 0.67 : 허용, ≥ 0.80 : 우수</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

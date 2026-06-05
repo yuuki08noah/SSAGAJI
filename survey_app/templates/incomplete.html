@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}미완성 설문{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align:center;">
+  <div style="font-size:3rem;margin-bottom:12px;">⚠️</div>
+  <h2>아직 답하지 않은 문항이 있습니다</h2>
+  <p class="lead">{{ total }}개 중 {{ answered }}개 응답 완료.<br>
+  아래 문항을 완료해 주세요.</p>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:20px 0;">
+    {% for num in unanswered %}
+    <a href="/survey/{{ session_id }}/{{ num }}" class="btn btn-outline"
+       style="padding:8px 16px;font-size:0.9rem;">{{ num }}번</a>
+    {% endfor %}
+  </div>
+
+  <a href="/survey/{{ session_id }}/{{ unanswered[0] }}" class="btn btn-primary">
+    이어서 응답하기 →
+  </a>
+</div>
+{% endblock %}

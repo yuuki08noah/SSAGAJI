@@ -1,0 +1,50 @@
+# 가상환경
+.venv/
+venv/
+env/
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 모델 가중치 (용량 큼)
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# DB / 사용자 데이터 (개인정보 포함 가능)
+survey_app/survey.db
+survey_app/sessions.json
+
+# 실제 수집된 설문 데이터 (개인정보: 나이, 성별)
+data/survey_results.csv
+
+# 실제 음성 파일 (용량 큼)
+survey_app/static/audio/*.wav
+survey_app/static/audio/*.mp3
+
+# 증강 생성 데이터
+data/augmented/
+data/aihub_emotion/
+
+# 실험 결과
+results/
+
+# 환경변수
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store
+
+# 로그
+*.log
